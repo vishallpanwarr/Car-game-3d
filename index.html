@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>APEX VELOCITY 4K - Ultimate 3D Hypercar Racer</title>
+    <link rel="stylesheet" href="styles.css">
+    
+    <!-- Three.js with Instant Multi-CDN Failover (Runs locally & online with ZERO CORS blocks) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        if (typeof THREE === 'undefined') {
+            document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"><\/script>');
+        }
+    </script>
+    <script>
+        if (typeof THREE === 'undefined') {
+            document.write('<script src="https://unpkg.com/three@0.128.0/build/three.min.js"><\/script>');
+        }
+    </script>
+</head>
+<body>
+    <!-- 3D WebGL Canvas Container -->
+    <div id="canvas-container"></div>
+
+    <!-- Overtake Notification Banner -->
+    <div id="overtake-banner" class="overtake-banner">⚡ OVERTAKEN!</div>
+
+    <!-- GAME HUD OVERLAY -->
+    <div id="hud-overlay" class="overlay-screen hidden">
+        <!-- Top Navigation / Status Bar -->
+        <div class="hud-top-bar">
+            <div class="hud-pill-group">
+                <div class="hud-pill">
+                    <span>RANK:</span>
+                    <strong id="race-position" style="color: var(--primary);">1 / 6</strong>
+                </div>
+                <div class="hud-pill">
+                    <span>TOP RECORD:</span>
+                    <strong id="top-speed-record" style="color: var(--accent);">0 KM/H</strong>
+                </div>
+                <div id="camera-mode-pill" class="hud-pill interactive-pill" title="Press 'C' to switch camera view">
+                    <span id="camera-mode-label">CAM: CHASE</span>
+                </div>
+                <div id="quality-toggle-pill" class="hud-pill interactive-pill" title="Toggle Graphics Quality">
+                    <span>MODE: 4K ULTRA</span>
+                </div>
+            </div>
+
+            <!-- Minimap Radar -->
+            <div class="minimap-container">
+                <canvas id="minimap-canvas" width="80" height="130"></canvas>
+            </div>
+
+            <div class="hud-pill-group">
+                <div id="audio-toggle-pill" class="hud-pill interactive-pill" title="Toggle Audio (M)">
+                    <span id="audio-pill-label">🔊 AUDIO ON</span>
+                </div>
+                <div id="pause-btn-pill" class="hud-pill interactive-pill" title="Pause Game (ESC)">
+                    <span>⏸️ ESC</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Center HUD: High-Speed Near Miss / Drift Notification -->
+        <div id="drift-notification" class="drift-pill-banner hidden">
+            <span>DRIFTING +NITRO!</span>
+        </div>
+
+        <!-- Bottom Zone: Cockpit Telemetry (Speedometer, Gear, RPM, Nitro) -->
+        <div class="hud-bottom-bar">
+            <!-- Telemetry Cluster -->
+            <div class="telemetry-cluster">
+                <!-- Speed Display -->
+                <div class="speed-display-box">
+                    <div id="speed-value" class="speed-num">0</div>
+                    <div class="speed-unit">KM/H</div>
+                </div>
+
+                <!-- Gear Display -->
+                <div class="gear-box">
+                    <span class="gear-label">GEAR</span>
+                    <span id="gear-value" class="gear-value">1</span>
+                </div>
+
+                <!-- RPM & Nitro Bars -->
+                <div class="gauge-bars-container">
+                    <!-- RPM Bar -->
+                    <div class="bar-wrapper">
+                        <div class="bar-title-row">
+                            <span>TACHOMETER</span>
+                            <span id="rpm-value">900 RPM</span>
+                        </div>
+                        <div class="meter-track">
+                            <div id="rpm-bar-fill" class="meter-fill rpm-fill"></div>
+                        </div>
+                    </div>
+
+                    <!-- Nitro Boost Bar -->
+                    <div class="bar-wrapper">
+                        <div class="bar-title-row">
+                            <span style="color: #00ff88;">NITROUS OVERDRIVE</span>
+                            <span>[SHIFT / N]</span>
+                        </div>
+                        <div class="meter-track">
+                            <div id="nitro-bar-fill" class="meter-fill nitro-fill" style="width: 100%;"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- On-Screen Controls Guide -->
+            <div class="controls-guide-box">
+                <div><span class="key-tag">W / ↑</span> Throttle &nbsp; <span class="key-tag">S / ↓</span> Brake/Reverse</div>
+                <div style="margin-top: 5px;"><span class="key-tag">A / D / ← →</span> Steer &nbsp; <span class="key-tag">SPACE</span> Handbrake Drift &nbsp; <span class="key-tag">SHIFT / N</span> Nitro</div>
+                <div style="margin-top: 5px;"><span class="key-tag">C</span> Camera Angle &nbsp; <span class="key-tag">R</span> Track Reset</div>
+            </div>
+        </div>
+
+        <!-- On-Screen Touch / Mouse Driving Buttons (Great for laptops & touchscreens) -->
+        <div class="mobile-touch-controls">
+            <div class="touch-group-left">
+                <button id="touch-left" class="touch-btn" aria-label="Steer Left">◀</button>
+                <button id="touch-right" class="touch-btn" aria-label="Steer Right">▶</button>
+            </div>
+            <div class="touch-group-right">
+                <button id="touch-brake" class="touch-btn touch-btn-brake" aria-label="Brake">BRAKE</button>
+                <button id="touch-gas" class="touch-btn touch-btn-gas" aria-label="Gas">GAS</button>
+                <button id="touch-nitro" class="touch-btn touch-btn-nitro" aria-label="Nitro">NITRO</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- START / MAIN MENU SCREEN -->
+    <div id="start-screen">
+        <div class="start-modal-content">
+            <h1 class="game-title">APEX VELOCITY 4K</h1>
+            <p class="game-subtitle">Next-Gen Ultra 3D Hypercar Racing Simulation</p>
+
+            <!-- Customization & Garage Panel -->
+            <div class="garage-controls-panel">
+                <!-- Supercar Paint Selection -->
+                <div class="custom-row">
+                    <span class="custom-label">Hypercar Paint:</span>
+                    <div class="color-swatches" id="paint-swatches">
+                        <div class="color-dot selected" style="background: #00f0ff;" data-color="0x00f0ff" title="Cyber Cyan"></div>
+                        <div class="color-dot" style="background: #ff0044;" data-color="0xff0044" title="Crimson Red"></div>
+                        <div class="color-dot" style="background: #151518;" data-color="0x151518" title="Stealth Carbon"></div>
+                        <div class="color-dot" style="background: #ffb700;" data-color="0xffb700" title="Electric Gold"></div>
+                        <div class="color-dot" style="background: #a800ff;" data-color="0xa800ff" title="Hyper Violet"></div>
+                        <div class="color-dot" style="background: #00ff66;" data-color="0x00ff66" title="Acid Green"></div>
+                        <div class="color-dot" style="background: #ffffff;" data-color="0xffffff" title="Alpine White"></div>
+                    </div>
+                </div>
+
+                <!-- Neon Underglow -->
+                <div class="custom-row">
+                    <span class="custom-label">Chassis Neon Underglow:</span>
+                    <div class="color-swatches" id="underglow-swatches">
+                        <div class="color-dot selected" style="background: #00f0ff;" data-color="0x00f0ff" title="Neon Cyan"></div>
+                        <div class="color-dot" style="background: #ff0055;" data-color="0xff0055" title="Neon Magenta"></div>
+                        <div class="color-dot" style="background: #ffaa00;" data-color="0xffaa00" title="Amber Glow"></div>
+                        <div class="color-dot" style="background: #9900ff;" data-color="0x9900ff" title="Purple Plasma"></div>
+                        <div class="color-dot" style="background: #00ff88;" data-color="0x00ff88" title="Emerald Light"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Launch Button -->
+            <button id="btn-start-game" class="btn-primary-launch">START ENGINE &amp; RACE ⚡</button>
+        </div>
+    </div>
+
+    <!-- PAUSE MODAL -->
+    <div id="pause-modal" class="modal-backdrop hidden">
+        <div class="pause-box">
+            <h2 class="pause-title">GAME PAUSED</h2>
+            <div class="pause-btn-list">
+                <button id="btn-resume-game" class="btn-secondary">RESUME RACE</button>
+                <button id="btn-restart-game" class="btn-secondary">RESTART</button>
+                <button id="btn-menu-game" class="btn-secondary">MAIN MENU</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Standalone Game Engine Script (Non-module for 100% universal compatibility) -->
+    <script src="bundle.js"></script>
+
+    <!-- UI Interaction Wiring -->
+    <script>
+        // Paint swatches
+        document.querySelectorAll('#paint-swatches .color-dot').forEach(function(dot) {
+            dot.addEventListener('click', function() {
+                document.querySelectorAll('#paint-swatches .color-dot').forEach(function(d) { d.classList.remove('selected'); });
+                dot.classList.add('selected');
+                var hex = parseInt(dot.getAttribute('data-color'), 16);
+                if (window.game && window.game.playerCar) {
+                    window.game.playerCar.setPaintColor(hex);
+                }
+            });
+        });
+
+        // Underglow swatches
+        document.querySelectorAll('#underglow-swatches .color-dot').forEach(function(dot) {
+            dot.addEventListener('click', function() {
+                document.querySelectorAll('#underglow-swatches .color-dot').forEach(function(d) { d.classList.remove('selected'); });
+                dot.classList.add('selected');
+                var hex = parseInt(dot.getAttribute('data-color'), 16);
+                if (window.game && window.game.playerCar) {
+                    window.game.playerCar.setUnderglowColor(hex);
+                }
+            });
+        });
+
+        // Start Launch Button
+        document.getElementById('btn-start-game').addEventListener('click', function() {
+            if (window.game) {
+                window.game.startGame();
+            } else if (typeof THREE === 'undefined') {
+                alert('Three.js is still loading from CDN. Please make sure you have internet access and click again in 2 seconds.');
+            }
+        });
+
+        // Camera Pill toggle
+        document.getElementById('camera-mode-pill').addEventListener('click', function() {
+            if (window.game) window.game.cycleCamera();
+        });
+
+        // Audio toggle
+        document.getElementById('audio-toggle-pill').addEventListener('click', function() {
+            if (window.game && window.game.soundEngine) {
+                var muted = window.game.soundEngine.toggleMute();
+                document.getElementById('audio-pill-label').textContent = muted ? '🔇 AUDIO OFF' : '🔊 AUDIO ON';
+            }
+        });
+
+        // Quality toggle
+        document.getElementById('quality-toggle-pill').addEventListener('click', function() {
+            if (!window.game) return;
+            var q = window.game.graphicsQuality;
+            var nextQ = (q === 'ultra') ? 'high' : 'ultra';
+            window.game.setGraphicsQuality(nextQ);
+            document.querySelector('#quality-toggle-pill span').textContent = 'MODE: ' + nextQ.toUpperCase();
+        });
+
+        // Pause controls
+        document.getElementById('pause-btn-pill').addEventListener('click', function() {
+            if (window.game) window.game.togglePause();
+        });
+
+        document.getElementById('btn-resume-game').addEventListener('click', function() {
+            if (window.game) window.game.togglePause();
+        });
+
+        document.getElementById('btn-restart-game').addEventListener('click', function() {
+            location.reload();
+        });
+
+        document.getElementById('btn-menu-game').addEventListener('click', function() {
+            location.reload();
+        });
+
+        // Touch / Click on-screen button controls
+        function setupTouchBtn(btnId, inputKey) {
+            var btn = document.getElementById(btnId);
+            if (!btn) return;
+            var start = function(e) {
+                e.preventDefault();
+                if (window.game) window.game.inputState[inputKey] = true;
+            };
+            var end = function(e) {
+                e.preventDefault();
+                if (window.game) window.game.inputState[inputKey] = false;
+            };
+            btn.addEventListener('mousedown', start);
+            btn.addEventListener('mouseup', end);
+            btn.addEventListener('mouseleave', end);
+            btn.addEventListener('touchstart', start, { passive: false });
+            btn.addEventListener('touchend', end, { passive: false });
+            btn.addEventListener('touchcancel', end, { passive: false });
+        }
+
+        setupTouchBtn('touch-gas', 'forward');
+        setupTouchBtn('touch-brake', 'backward');
+        setupTouchBtn('touch-left', 'left');
+        setupTouchBtn('touch-right', 'right');
+        setupTouchBtn('touch-nitro', 'nitro');
+    </script>
+</body>
+</html>
